@@ -41,7 +41,13 @@ class FilterConfigSchema(ma.Schema):
     class Meta:
         model = models.FilterConfig
         # Fields to expose
-        fields = ('access_log', 'codec_type', 'stat_prefix', 'route_config', 'fields',)
+        fields = (
+            'access_log',
+            'codec_type',
+            'stat_prefix',
+            'route_config',
+            'fields',
+        )
 
 
 class ListenerSchema(ma.Schema):
@@ -69,7 +75,14 @@ class ClusterSchema(ma.Schema):
     class Meta:
         model = models.Cluster
         # Fields to expose
-        fields = ('name', 'connect_timeout_ms', 'type', 'lb_type', 'features', 'hosts',)
+        fields = (
+            'name',
+            'connect_timeout_ms',
+            'type',
+            'lb_type',
+            'features',
+            'hosts',
+        )
 
 
 class ClusterManagerSchema(ma.Schema):
@@ -83,4 +96,4 @@ class ListenerConfigurationSchema(ma.Schema):
     class Meta:
         model = models.ListenerConfiguration
         # Fields to expose
-        fields = ('listeners', 'admin', 'cluster_manager',)
+        fields = ('listeners',)
