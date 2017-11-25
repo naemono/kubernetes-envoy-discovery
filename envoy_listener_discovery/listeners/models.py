@@ -68,5 +68,3 @@ class ClusterManager(Schema):
 
 class ListenerConfiguration(Schema):
     listeners = fields.Nested(Listener())
-    admin = Admin()
-    cluster_manager = ClusterManager()

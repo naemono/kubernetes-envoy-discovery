@@ -28,30 +28,32 @@ def _get_k8s_services():
     return response.json().get('items')
 
 
-def _get_ports_from_service(service):
-    ports = list()
-    for port in service['spec']['ports']:
-        if port.get('nodePort'):
-            ports.append(port['nodePort'])
-        else:
-            ports.append(port['targetPort'])
-    return ports
+def _get_service_endpoints(service):
+    url = "http://localhost:8001/api/v1/namespaces/{}/endpoints/{}".format(service['metadata']['namespace'],
+                                                                           service['metadata']['name'])
+    response = requests.get(url, timeout=10)
+
+    if response and response.status_code != 200:
+        return None
+
+    return response.json()
 
 
 def _get_live_services(services):
     live_services = list()
     for service in services:
         if service.get('metadata', {}).get('labels'):
-            pods = _get_pods_by_selector(
-                service.get('metadata', {}).get('labels'))
-            if pods:
+            endpoints = _get_service_endpoints(service)
+            if endpoints:
                 live_services.append(dict(
                     service=dict(
                         name=service['metadata']['name'],
-                        ports=_get_ports_from_service(service)
+                        ports=list(set([port['port'] for subset in endpoints['subsets']
+                                        for port in subset['ports']]))
                     ),
-                    pods=list(set([
-                        item['status']['hostIP'] for item in pods]))
+                    pods=list(set([address['ip']
+                                   for subset in endpoints['subsets']
+                                   for address in subset['addresses']]))
                 ))
     return live_services
 
@@ -106,17 +108,8 @@ def index():
     services = _get_k8s_services()
     valid_services = _get_live_services(services)
     listeners = _get_listeners_from_services(valid_services)
-    clusters = _get_clusters_from_services(valid_services)
     config = dict(
-        listeners=listeners,
-        admin=dict(
-            access_log_path="/dev/stsdout",
-            address="tcp://0.0.0.0:8001"
-        ),
-        cluster_manager=dict(
-            clusters=clusters
-        )
-    )
+        listeners=listeners)
     schema = envoy_schema.ListenerConfigurationSchema()
     result = schema.dump(config)
     return jsonify(result.data)
