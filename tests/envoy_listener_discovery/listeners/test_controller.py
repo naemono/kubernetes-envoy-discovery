@@ -3,8 +3,7 @@ import pytest
 import responses
 
 
-class TestExternalResource():
-    """Functional tests for CastersResource."""
+class TestListeners():
 
     @pytest.fixture
     def url(self):
