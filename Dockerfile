@@ -6,7 +6,7 @@ RUN mkdir -p $INSTALL_PATH
 
 WORKDIR $INSTALL_PATH
 
-COPY requirements.txt requirements.txt
+COPY requirements/prod.txt requirements.txt
 RUN apk add --no-cache --virtual .build-deps \
   build-base \
     && pip install -r requirements.txt \
