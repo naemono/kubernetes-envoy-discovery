@@ -1,6 +1,6 @@
 import logging
 
-from flask.ext.restful import Api
+from flask_restful import Api
 
 
 log = logging.getLogger(__name__)
