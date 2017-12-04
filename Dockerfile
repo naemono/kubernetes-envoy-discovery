@@ -1,7 +1,7 @@
 FROM python:3.6.3-alpine3.6
 
 ENV PYTHONUNBUFFERED 1
-ENV INSTALL_PATH /kubernetes-envoy-lds
+ENV INSTALL_PATH /kubernetes-envoy-discovery
 RUN mkdir -p $INSTALL_PATH
 
 WORKDIR $INSTALL_PATH
@@ -26,6 +26,6 @@ RUN apk add --no-cache --virtual .build-deps \
     && rm -rf /var/cache/apk/*
 
 COPY ./run.py run.py
-COPY ./envoy_listener_discovery envoy_listener_discovery
+COPY ./envoy_discovery_service
 
 CMD python3 run.py
