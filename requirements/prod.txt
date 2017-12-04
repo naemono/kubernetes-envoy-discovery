@@ -18,3 +18,4 @@ six==1.11.0
 urllib3==1.22
 wcwidth==0.1.7
 Werkzeug==0.12.2
+flask-restful==0.3.6
