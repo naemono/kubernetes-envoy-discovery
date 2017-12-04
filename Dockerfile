@@ -26,6 +26,6 @@ RUN apk add --no-cache --virtual .build-deps \
     && rm -rf /var/cache/apk/*
 
 COPY ./run.py run.py
-COPY ./envoy_discovery_service
+COPY ./envoy_discovery_service envoy_discovery_service
 
 CMD python3 run.py
