@@ -1,5 +1,5 @@
 import pytest
-from envoy_listener_discovery import app as flask_app
+from envoy_discovery_service import app as flask_app
 
 
 @pytest.fixture(scope='session')
