@@ -14,9 +14,13 @@ class TestServiceDiscoveryService():
     #################
 
     @responses.activate
-    def test_service_discovery_service(self, app, url, k8s_endpoint_responses):
-        responses.add(responses.GET, 'https://kubernetes/api/v1/namespaces/default/endpoints/kubernetes-dashboard',
+    def test_service_discovery_service(self, app, url, k8s_endpoint_responses, k8s_service_response):
+        responses.add(responses.GET, 'https://kubernetes/api/v1/namespaces/kube-system/endpoints/kubernetes-dashboard',
                       json=k8s_endpoint_responses['kubernetes-dashboard'], status=200)
+        service_responses = [item for item in k8s_service_response['items']
+                             if item['metadata']['name'] == 'kubernetes-dashboard']
+        responses.add(responses.GET, 'https://kubernetes/api/v1/namespaces/default/services/kubernetes-dashboard',
+                      json=service_responses[0], status=200)
         response = app.get("{}/{}".format(url, 'kubernetes-dashboard'))
         response_data = json.loads(response.data.decode())
 

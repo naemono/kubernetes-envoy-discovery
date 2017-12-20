@@ -10,5 +10,6 @@ api = API(app=v1_blueprint)
 
 api.add_resource(ListenerDiscoveryService,
                  '/listeners/<string:service_cluster>/<string:service_node>')
-api.add_resource(ClusterDiscoveryService, '/clusters/')
+api.add_resource(ClusterDiscoveryService,
+                 '/clusters/<string:service_cluster>/<string:service_node>')
 api.add_resource(ServiceDiscoveryService, '/registration/<string:service_name>')

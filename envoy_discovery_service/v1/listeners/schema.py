@@ -1,5 +1,5 @@
 from envoy_discovery_service import ma
-from envoy_discovery_service.v1.listeners import models
+from .. import models
 
 
 class RouteSchema(ma.Schema):

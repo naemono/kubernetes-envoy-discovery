@@ -1,5 +1,5 @@
 from flask import jsonify
-from flask.ext.restful import Resource
+from flask_restful import Resource
 from envoy_discovery_service.v1.listeners import schema as listeners_schema
 from envoy_discovery_service.v1 import kubernetes_utils
 

@@ -110,7 +110,8 @@ def k8s_service_response():
                                     "addonmanager.kubernetes.io/mode": "Reconcile",
                                     "app": "kubernetes-dashboard",
                                     "kubernetes.io/minikube-addons": "dashboard",
-                                    "kubernetes.io/minikube-addons-endpoint": "dashboard"
+                                    "kubernetes.io/minikube-addons-endpoint": "dashboard",
+                                    "envoyEnabled": "true"
                                 },
                     "annotations": {
                                     "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"annotations\":{},\"labels\":{\"addonmanager.kubernetes.io/mode\":\"Reconcile\",\"app\":\"kubernetes-dashboard\",\"kubernetes.io/minikube-addons\":\"dashboard\",\"kubernetes.io/minikube-addons-endpoint\":\"dashboard\"},\"name\":\"kubernetes-dashboard\",\"namespace\":\"kube-system\"},\"spec\":{\"ports\":[{\"nodePort\":30000,\"port\":80,\"targetPort\":9090}],\"selector\":{\"app\":\"kubernetes-dashboard\"},\"type\":\"NodePort\"}}\n"
@@ -258,5 +259,41 @@ def k8s_endpoint_responses():
                     ]
                 }
             ]
+        }
+    }
+
+
+@pytest.fixture
+def k8s_configmap_response():
+    return {
+        "envoy-config": {
+            "kind": "ConfigMap",
+            "apiVersion": "v1",
+            "metadata": {
+                    "name": "envoy-config",
+                    "namespace": "default",
+                    "selfLink": "/api/v1/namespaces/default/configmaps/envoy-config",
+                    "uid": "b9853f7e-da8c-11e7-85fc-08002771376b",
+                    "resourceVersion": "298406",
+                    "creationTimestamp": "2017-12-06T13:52:40Z"
+            },
+            "data": {
+                "envoy.config": "listeners: []\nadmin:\n  access_log_path: \"/dev/null\"\n  address: tcp://0.0.0.0:8001\ncluster_manager:\n  cds:\n    cluster:\n      name: envoy-cds\n      connect_timeout_ms: 250\n      type: strict_dns\n      lb_type: round_robin\n      hosts:\n      - url: tcp://envoy-discovery-service:5000\n    refresh_delay_ms: 15000\n  sds:\n    cluster:\n      name: envoy-sds\n      connect_timeout_ms: 250\n      type: strict_dns\n      lb_type: round_robin\n      hosts:\n      - url: tcp://envoy-discovery-service:5000\n    refresh_delay_ms: 15000\n  clusters:\n  - name: envoy-lds\n    connect_timeout_ms: 250\n    type: strict_dns\n    lb_type: round_robin\n    hosts:\n    - url: tcp://envoy-discovery-service:5000\nlds:\n  cluster: envoy-lds\n  refresh_delay_ms: 10000\n"
+            }
+        },
+        "example-envoy-service": {
+            "kind": "ConfigMap",
+            "apiVersion": "v1",
+            "metadata": {
+                    "name": "example_config",
+                    "namespace": "default",
+                    "selfLink": "/api/v1/namespaces/default/configmaps/example_config",
+                    "uid": "b9853f7e-da8c-11e7-85fc-08002771376b",
+                    "resourceVersion": "298406",
+                    "creationTimestamp": "2017-12-06T13:52:40Z"
+            },
+            "data": {
+                "envoy.config": 'filters:\n  - type: tcp_proxy\n    config:\n      access_log:\n        - path: "dev/stdout"\n      stat_prefix: "mongo_27017"\n      route_config:\n        routes:\n          - cluster: "mongo_27017"\n  - type: mongo_proxy\n    config:\n      access_log: "dev/stdout"\n      stat_prefix: "mongo_27017"\n'
+            }
         }
     }

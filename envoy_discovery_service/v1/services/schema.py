@@ -1,5 +1,5 @@
 from envoy_discovery_service import ma
-from . import models
+from .. import models
 
 
 class HostSchema(ma.Schema):

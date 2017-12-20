@@ -6,6 +6,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'flask-marshmallow',
-        'flask'
+        'flask',
+        'python-json-logger==0.1.5'
     ],
 )

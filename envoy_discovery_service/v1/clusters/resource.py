@@ -1,12 +1,12 @@
 from flask import jsonify
-from flask.ext.restful import Resource
+from flask_restful import Resource
 from envoy_discovery_service.v1.clusters import schema as clusters_schema
 from envoy_discovery_service.v1 import kubernetes_utils
 from envoy_discovery_service import app
 
 
 class ClusterDiscoveryService(Resource):
-    def get(self):
+    def get(self, service_cluster, service_node):
         clusters = kubernetes_utils.get_clusters_from_services(
             kubernetes_utils.get_k8s_services(),
             internal_k8s_envoy=app.config['internal_k8s_envoy'])

@@ -28,4 +28,5 @@ RUN apk add --no-cache --virtual .build-deps \
 COPY ./run.py run.py
 COPY ./envoy_discovery_service envoy_discovery_service
 
+EXPOSE 5000
 CMD python3 run.py
