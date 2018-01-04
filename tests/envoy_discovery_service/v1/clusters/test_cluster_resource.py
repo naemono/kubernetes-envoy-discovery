@@ -15,9 +15,19 @@ class TestClusterDiscoveryService():
     #################
 
     @responses.activate
-    def test_cluster_discovery_service(self, app, url, k8s_service_response):
+    def test_cluster_discovery_service(self, app, url, k8s_service_response, k8s_endpoint_responses, k8s_get_node_response):
         responses.add(responses.GET, 'http://localhost:8001/api/v1/services',
                       json=k8s_service_response, status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/kubernetes',
+                      json=k8s_endpoint_responses['kubernetes'], status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/nodes/minikube',
+                      json=k8s_get_node_response, status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/kube-system/endpoints/kube-dns',
+                      json=k8s_endpoint_responses['kube-dns'], status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/kube-system/endpoints/kubernetes-dashboard',
+                      json=k8s_endpoint_responses['kubernetes-dashboard'], status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/mongo_no_cluster_ip',
+                      json=k8s_endpoint_responses['kubernetes'], status=200)
         response = app.get("{}devtools/devtools".format(url))
         response_data = json.loads(response.data.decode())
 
@@ -31,14 +41,20 @@ class TestClusterDiscoveryService():
 
     @responses.activate
     def test_cluster_discovery_service_external_envoy(
-            self, app, url, k8s_service_response, k8s_endpoint_responses):
+            self, app, url, k8s_service_response, k8s_endpoint_responses, k8s_get_node_response):
         responses.add(responses.GET, 'http://localhost:8001/api/v1/services',
                       json=k8s_service_response, status=200)
-        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/kubernetes-dashboard',
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/kube-system/endpoints/kubernetes-dashboard',
                       json=k8s_endpoint_responses['kubernetes-dashboard'], status=200)
-        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/kube-dns',
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/kube-system/endpoints/kube-dns',
                       json=k8s_endpoint_responses['kube-dns'], status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/kube-system/endpoints/kubernetes',
+                      json=k8s_endpoint_responses['kubernetes'], status=200)
         responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/kubernetes',
+                      json=k8s_endpoint_responses['kubernetes'], status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/nodes/minikube',
+                      json=k8s_get_node_response, status=200)
+        responses.add(responses.GET, 'http://localhost:8001/api/v1/namespaces/default/endpoints/mongo_no_cluster_ip',
                       json=k8s_endpoint_responses['kubernetes'], status=200)
 
         from envoy_discovery_service import app as envoy_app

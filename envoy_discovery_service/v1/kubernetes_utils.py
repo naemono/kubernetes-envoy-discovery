@@ -52,6 +52,19 @@ def _endpoints_response_valid(endpoints):
     return not (endpoints['kind'] == 'Status' and endpoints['code'] == 404)
 
 
+def _get_ip_for_node(node_name):
+    url = "{}/api/v1/nodes/{}".format(host, node_name)
+    response = requests.get(
+        url, timeout=10, verify=False, headers={"Authorization": "Bearer " + TOKEN})
+
+    if response and response.status_code != 200:
+        return None
+
+    address = [address['address'] for address in response.json()['status']['addresses']
+               if address['type'] == 'InternalIP']
+    return address[0] if address else None
+
+
 def _get_service_envoy_config(service):
     url = "{}/api/v1/namespaces/{}/configmaps/{}".format(host, service['metadata']['namespace'],
                                                          service['metadata']['name'])
@@ -157,25 +170,31 @@ def get_listeners_from_services(services):
 def get_clusters_from_services(services, internal_k8s_envoy=False):
     clusters = list()
     for service in services:
-        for port in service['spec']['ports']:
-            if internal_k8s_envoy:
-                hosts = [dict(url="tcp://{}:{}".format(service['metadata']['name'],
-                                                       port['port']))]
-            else:
-                if service['spec']['clusterIP'] == 'None':
+        endpoints = get_service_endpoints(service)
+        for subset in endpoints['subsets']:
+            for address in subset['addresses']:
+                if not address.get('nodeName'):
                     continue
-                hosts = [dict(url="tcp://{}:{}".format(
-                    app.config['service_ip_override']
-                    if app.config['service_ip_override']
-                    else service['spec']['clusterIP'], port['nodePort'] if port.get('nodePort') else port['port']))]
-            clusters.append(dict(
-                name="{}_{}".format(service['metadata']['name'], port['port']),
-                connect_timeout_ms=250,
-                type="strict_dns" if internal_k8s_envoy else "static",
-                lb_type="round_robin",
-                features="http2",
-                hosts=hosts
-            ))
+                ip = _get_ip_for_node(address['nodeName'])
+                for port in subset['ports']:
+                    if internal_k8s_envoy:
+                        hosts = [dict(url="tcp://{}:{}".format(service['metadata']['name'],
+                                                               port['port']))]
+                    else:
+                        if service['spec']['clusterIP'] == 'None':
+                            continue
+                        hosts = [dict(url="tcp://{}:{}".format(
+                            app.config['service_ip_override']
+                            if app.config['service_ip_override']
+                            else ip, port['port']))]
+                    clusters.append(dict(
+                        name="{}_{}".format(service['metadata']['name'], port['port']),
+                        connect_timeout_ms=250,
+                        type="strict_dns" if internal_k8s_envoy else "static",
+                        lb_type="round_robin",
+                        features="http2",
+                        hosts=hosts
+                    ))
     return clusters
 
 
