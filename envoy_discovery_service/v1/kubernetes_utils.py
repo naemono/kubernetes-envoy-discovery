@@ -162,7 +162,7 @@ def get_clusters_from_services(services, internal_k8s_envoy=False):
                 hosts = [dict(url="tcp://{}:{}".format(service['metadata']['name'],
                                                        port['port']))]
             else:
-                if not service['spec']['clusterIP']:
+                if service['spec']['clusterIP'] == 'None':
                     continue
                 hosts = [dict(url="tcp://{}:{}".format(
                     app.config['service_ip_override']

@@ -53,3 +53,4 @@ class TestClusterDiscoveryService():
             assert cluster['type'] == 'static'
             for host in cluster['hosts']:
                 assert re.compile("tcp://\d+.\d+.\d+.\d+:\d+").match(host['url']) is not None
+                assert 'None' not in host['url']

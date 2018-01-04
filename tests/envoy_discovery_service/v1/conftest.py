@@ -137,6 +137,37 @@ def k8s_service_response():
                 "status": {
                     "loadBalancer": {}
                 }
+            },
+            {
+                "metadata": {
+                    "name": "mongo_no_cluster_ip",
+                    "namespace": "default",
+                    "selfLink": "/api/v1/namespaces/default/services/mongo",
+                                "uid": "60ca4ee4-e07c-11e7-8511-122cc2daa808",
+                                "resourceVersion": "1377050",
+                                "creationTimestamp": "2017-12-14T03:10:46Z",
+                                "labels": {
+                                    "name": "mongo_no_cluster_ip"
+                                }
+                },
+                "spec": {
+                    "ports": [
+                        {
+                            "protocol": "TCP",
+                            "port": 27017,
+                            "targetPort": 27017
+                        }
+                    ],
+                    "selector": {
+                        "role": "mongo_no_cluster_ip"
+                    },
+                    "clusterIP": "None",
+                    "type": "ClusterIP",
+                    "sessionAffinity": "None"
+                },
+                "status": {
+                    "loadBalancer": {}
+                }
             }
         ]
     }
