@@ -199,11 +199,13 @@ def get_clusters_from_services(services, internal_k8s_envoy=False):
 
 
 def get_k8s_services():
+    print("here")
     url = "{}/api/v1/services".format(host)
     response = requests.get(url, timeout=10, verify=False, headers={
         "Authorization": "Bearer " + TOKEN})
 
     if response and response.status_code != 200:
+        print("Invalid response: {}".format(response.text))
         return None
 
     return response.json().get('items')
