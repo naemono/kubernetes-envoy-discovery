@@ -140,30 +140,17 @@ def get_listeners_from_services(services):
         service_filters = _get_service_filters(service)
         if not service_filters:
             continue
-        if not app.config['service_ip_override']:
-            for port in list(set([port['port'] for subset in endpoints['subsets']
-                                  for port in subset['ports']])):
-                listeners.append(dict(
-                    address="tcp://0.0.0.0:{}".format(port),
-                    filters=[_create_filter(endpoints, service, service_filter)
-                             for service_filter in service_filters],
-                    name="{}_{}".format(
-                        service['metadata']['name'],
-                        port)
-                ))
-        else:
-            print("Service: {}".format(service))
-            for port in service['spec'].get('ports', []):
-                if not port['nodePort']:
-                    continue
-                listeners.append(dict(
-                    address="tcp://0.0.0.0:{}".format(port['nodePort']),
-                    filters=[_create_filter(endpoints, service, service_filter)
-                             for service_filter in service_filters],
-                    name="{}_{}".format(
-                        service['metadata']['name'],
-                        port['port'])
-                ))
+        for port in service['spec'].get('ports', []):
+            if not port['nodePort']:
+                continue
+            listeners.append(dict(
+                address="tcp://0.0.0.0:{}".format(port['nodePort']),
+                filters=[_create_filter(endpoints, service, service_filter)
+                         for service_filter in service_filters],
+                name="{}_{}".format(
+                    service['metadata']['name'],
+                    port['port'])
+            ))
     return listeners
 
 
