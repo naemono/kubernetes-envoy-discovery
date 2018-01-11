@@ -141,7 +141,7 @@ def get_listeners_from_services(services):
         if not service_filters:
             continue
         for port in service['spec'].get('ports', []):
-            if not port['nodePort']:
+            if not port.get('nodePort'):
                 continue
             listeners.append(dict(
                 address="tcp://0.0.0.0:{}".format(port['nodePort']),
