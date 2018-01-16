@@ -176,8 +176,8 @@ def get_clusters_from_services(services, internal_k8s_envoy=False):
         pass
     for service in services:
         endpoints = get_service_endpoints(service)
-        for subset in endpoints['subsets']:
-            for address in subset['addresses']:
+        for subset in endpoints.get('subsets', []):
+            for address in subset.get('addresses', []):
                 if not address.get('nodeName'):
                     continue
                 ip = _get_ip_for_node(address['nodeName'])
