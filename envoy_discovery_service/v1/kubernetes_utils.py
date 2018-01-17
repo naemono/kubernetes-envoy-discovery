@@ -151,7 +151,7 @@ def get_listeners_from_services(services):
             if not port.get('nodePort'):
                 continue
             listeners.append(dict(
-                address="tcp://0.0.0.0:{}".format(port['nodePort']),
+                address="tcp://:::{}".format(port['nodePort']),
                 filters=[_create_filter(endpoints, service, service_filter)
                          for service_filter in service_filters],
                 name="{}_{}".format(
