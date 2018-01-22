@@ -1,5 +1,7 @@
 from distutils.util import strtobool
 
+from lru import LRUCacheDict
+
 import logging
 import requests
 import yaml
@@ -8,6 +10,7 @@ from . import filters
 from . import models
 from .. import app
 
+d = LRUCacheDict(max_size=10, expiration=5 * 60)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ else:
 try:
     TOKEN = open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r").read()
 except FileNotFoundError:
-    TOKEN = ''
+    TOKEN = None
 
 
 def _create_filter(endpoints, service, service_filter):
@@ -52,11 +55,24 @@ def _endpoints_response_valid(endpoints):
     return not (endpoints['kind'] == 'Status' and endpoints['code'] == 404)
 
 
+def _get_ip_for_node(node_name):
+    url = "{}/api/v1/nodes/{}".format(host, node_name)
+    response = requests.get(
+        url, timeout=10, verify=False, headers={"Authorization": "Bearer " + TOKEN} if TOKEN else {})
+
+    if response and response.status_code != 200:
+        return None
+
+    address = [address['address'] for address in response.json()['status']['addresses']
+               if address['type'] == 'InternalIP']
+    return address[0] if address else None
+
+
 def _get_service_envoy_config(service):
     url = "{}/api/v1/namespaces/{}/configmaps/{}".format(host, service['metadata']['namespace'],
                                                          service['metadata']['name'])
     response = requests.get(url, timeout=10, verify=False, headers={
-                            "Authorization": "Bearer " + TOKEN})
+                            "Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
     if response and response.status_code != 200:
         return None
@@ -66,7 +82,6 @@ def _get_service_envoy_config(service):
 
 def _get_service_filters(service):
     service_envoy_config = _get_service_envoy_config(service)
-    print("configmap: {}".format(service_envoy_config))
     if not service_envoy_config:
         return []
     envoy_config = service_envoy_config.get('data', {}).get('envoy.config')
@@ -89,15 +104,13 @@ def _get_service_filters(service):
 
 
 def _service_envoy_enabled(service):
-    print("envoy enabled: {}".format(
-        service['metadata'].get('labels', {}).get('envoyEnabled', 'false')))
     return strtobool(service['metadata'].get('labels', {}).get('envoyEnabled', 'false'))
 
 
 def _get_pods_by_selector(selectors):
     url = "{}/api/v1/namespaces/default/pods".format(host)
     response = requests.get(url, timeout=10, params=selectors, verify=False,
-                            headers={"Authorization": "Bearer " + TOKEN})
+                            headers={"Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
     if response and response.status_code != 200:
         return None
@@ -109,7 +122,7 @@ def _get_service_endpoints(service):
     url = "{}/api/v1/namespaces/{}/endpoints/{}".format(host, service['metadata']['namespace'],
                                                         service['metadata']['name'])
     response = requests.get(url, timeout=10, verify=False, headers={
-        "Authorization": "Bearer " + TOKEN})
+        "Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
     if response and response.status_code != 200:
         return None
@@ -119,6 +132,13 @@ def _get_service_endpoints(service):
 
 def get_listeners_from_services(services):
     listeners = list()
+    try:
+        if d['listeners']:
+            LOGGER.info("Found listeners in cache")
+            return d['listeners']
+    except KeyError:
+        LOGGER.info("listeners not found in cache")
+        pass
     for service in services:
         endpoints = get_service_endpoints(service)
         if (not _service_envoy_enabled(service)
@@ -127,65 +147,84 @@ def get_listeners_from_services(services):
         service_filters = _get_service_filters(service)
         if not service_filters:
             continue
-        if not app.config['service_ip_override']:
-            for port in list(set([port['port'] for subset in endpoints['subsets']
-                                  for port in subset['ports']])):
-                listeners.append(dict(
-                    address="tcp://0.0.0.0:{}".format(port),
-                    filters=[_create_filter(endpoints, service, service_filter)
-                             for service_filter in service_filters],
-                    name="{}_{}".format(
-                        service['metadata']['name'],
-                        port)
-                ))
-        else:
-            print("Service: {}".format(service))
-            for port in service['spec'].get('ports', []):
-                if not port['nodePort']:
-                    continue
-                listeners.append(dict(
-                    address="tcp://0.0.0.0:{}".format(port['nodePort']),
-                    filters=[_create_filter(endpoints, service, service_filter)
-                             for service_filter in service_filters],
-                    name="{}_{}".format(
-                        service['metadata']['name'],
-                        port['port'])
-                ))
+        for port in service['spec'].get('ports', []):
+            if not port.get('nodePort'):
+                continue
+            listeners.append(dict(
+                address="tcp://0.0.0.0:{}".format(port['nodePort']),
+                filters=[_create_filter(endpoints, service, service_filter)
+                         for service_filter in service_filters],
+                name="{}_{}".format(
+                    service['metadata']['name'],
+                    port['port'])
+            ))
+    LOGGER.info("Adding listeners to cache")
+    d['listeners'] = listeners
     return listeners
 
 
 def get_clusters_from_services(services, internal_k8s_envoy=False):
     clusters = list()
+    if not services:
+        return clusters
+    try:
+        if d['clusters']:
+            LOGGER.info("Found clusters in cache")
+            return d['clusters']
+    except KeyError:
+        LOGGER.info("Clusters not found in cache")
+        pass
     for service in services:
-        for port in service['spec']['ports']:
-            if internal_k8s_envoy:
-                hosts = [dict(url="tcp://{}:{}".format(service['metadata']['name'],
-                                                       port['port']))]
-            else:
-                hosts = [dict(url="tcp://{}:{}".format(
-                    app.config['service_ip_override']
-                    if app.config['service_ip_override']
-                    else service['spec']['clusterIP'], port['nodePort'] if port.get('nodePort') else port['port']))]
-            clusters.append(dict(
-                name="{}_{}".format(service['metadata']['name'], port['port']),
-                connect_timeout_ms=250,
-                type="strict_dns" if internal_k8s_envoy else "static",
-                lb_type="round_robin",
-                features="http2",
-                hosts=hosts
-            ))
+        endpoints = get_service_endpoints(service)
+        for subset in endpoints.get('subsets', []):
+            for address in subset.get('addresses', []):
+                if not address.get('nodeName'):
+                    continue
+                ip = _get_ip_for_node(address['nodeName'])
+                for port in service['spec']['ports']:
+                    if internal_k8s_envoy:
+                        hosts = [dict(url="tcp://{}:{}".format(service['metadata']['name'],
+                                                               port['port']))]
+                    else:
+                        if service['spec']['clusterIP'] == 'None':
+                            continue
+                        hosts = [dict(url="tcp://{}:{}".format(
+                            app.config['service_ip_override']
+                            if app.config['service_ip_override']
+                            else ip, port['nodePort'] if port.get('nodePort') else port['port']))]
+                    clusters.append(dict(
+                        name="{}_{}".format(service['metadata']['name'], port['port']),
+                        connect_timeout_ms=250,
+                        type="strict_dns" if internal_k8s_envoy else "static",
+                        lb_type="round_robin",
+                        features="http2",
+                        hosts=hosts
+                    ))
+    LOGGER.info("Adding clusters to cache")
+    d['clusters'] = clusters
     return clusters
 
 
 def get_k8s_services():
+    try:
+        if d['services']:
+            LOGGER.info("Found services in cache")
+            return d['services']
+    except KeyError:
+        LOGGER.info("Services not found in cache")
+        pass
     url = "{}/api/v1/services".format(host)
     response = requests.get(url, timeout=10, verify=False, headers={
-        "Authorization": "Bearer " + TOKEN})
+        "Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
-    if response and response.status_code != 200:
+    if response is not None and response.status_code != 200:
+        LOGGER.error("Invalid response: {}".format(response.text))
         return None
 
-    return response.json().get('items')
+    services = response.json().get('items')
+    LOGGER.info("Adding services to cache")
+    d['services'] = services
+    return services
 
 
 def get_k8s_service(namespace, service_name):
@@ -193,7 +232,7 @@ def get_k8s_service(namespace, service_name):
         host, namespace, service_name
     )
     response = requests.get(url, timeout=10, verify=False, headers={
-        "Authorization": "Bearer " + TOKEN})
+        "Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
     if response and response.status_code != 200:
         return None
@@ -205,7 +244,7 @@ def get_service_endpoints(service):
     url = "{}/api/v1/namespaces/{}/endpoints/{}".format(
         host, service['metadata']['namespace'], service['metadata']['name'])
     response = requests.get(
-        url, timeout=10, verify=False, headers={"Authorization": "Bearer " + TOKEN})
+        url, timeout=10, verify=False, headers={"Authorization": "Bearer " + TOKEN} if TOKEN else {})
 
     if response and response.status_code != 200:
         return None
