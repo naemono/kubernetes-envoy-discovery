@@ -10,7 +10,7 @@ from . import filters
 from . import models
 from .. import app
 
-d = LRUCacheDict(max_size=10, expiration=5 * 60)
+d = LRUCacheDict(max_size=10, expiration=60)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -165,6 +165,16 @@ def get_listeners_from_services(services):
 
 def get_clusters_from_services(services, internal_k8s_envoy=False):
     clusters = list()
+    circuit_breaker = dict(
+        max_connections=1024000,
+        max_pending_requests=1024000,
+        max_requests=1024000,
+        max_retries=3
+    )
+    circuit_breakers = dict(
+        default=circuit_breaker,
+        high=circuit_breaker
+    )
     if not services:
         return clusters
     try:
@@ -198,6 +208,7 @@ def get_clusters_from_services(services, internal_k8s_envoy=False):
                         type="strict_dns" if internal_k8s_envoy else "static",
                         lb_type="round_robin",
                         features="http2",
+                        circuit_breakers=circuit_breakers,
                         hosts=hosts
                     ))
     LOGGER.info("Adding clusters to cache")
