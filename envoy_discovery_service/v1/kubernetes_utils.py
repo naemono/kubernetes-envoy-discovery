@@ -207,7 +207,6 @@ def get_clusters_from_services(services, internal_k8s_envoy=False):
                         connect_timeout_ms=250,
                         type="strict_dns" if internal_k8s_envoy else "static",
                         lb_type="round_robin",
-                        features="http2",
                         circuit_breakers=circuit_breakers,
                         hosts=hosts
                     ))
